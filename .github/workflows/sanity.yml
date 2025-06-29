@@ -1,0 +1,70 @@
+# .github/workflows/cml-report.yml
+
+name: Model Sanity Test and CML Report
+
+# This action will trigger on pull requests made to the 'main' branch
+on:
+  pull_request:
+    branches:
+      - master
+
+# Permissions needed for CML to comment on the Pull Request
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-tests-and-report:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the code from the repository
+      - uses: actions/checkout@v3
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Step 3: Set up CML (Continuous Machine Learning) tools
+      - name: Set up CML
+        uses: iterative/setup-cml@v2
+
+      # Step 4: Install Python dependencies from requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Step 5: Run tests and generate reports
+      # We run both the pytest suite and the main training script
+      # and pipe their outputs to text files.
+      - name: Run tests and training script
+        run: |
+          # Run pytest for data validation and unit tests
+          pytest --verbose test.py > pytest_output.txt
+
+          # Run the main training script to get the classification report
+          python train.py > training_output.txt
+
+      # Step 6: Create a CML report in Markdown and post it as a comment
+      - name: Create CML report
+        env:
+          # This token is required for CML to access the repository
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Combine the outputs into a single Markdown report file
+          echo "## 🧪 Pytest Unit Test Results" > report.md
+          echo "\`\`\`" >> report.md
+          cat pytest_output.txt >> report.md
+          echo "\`\`\`" >> report.md
+          
+          echo "" >> report.md # Add a newline for spacing
+          
+          echo "## 📊 Model Training Sanity Check Report" >> report.md
+          echo "This report shows the accuracy and classification metrics from a fresh run." >> report.md
+          echo "\`\`\`" >> report.md
+          cat training_output.txt >> report.md
+          echo "\`\`\`" >> report.md
+          
+          # Use CML to create a comment on the Pull Request with the report
+          cml comment create report.md
