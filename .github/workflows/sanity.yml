@@ -6,7 +6,7 @@ name: Model Sanity Test and CML Report
 on:
   pull_request:
     branches:
-      - main
+      - master
 
 # Permissions needed for CML to comment on the Pull Request
 permissions:
